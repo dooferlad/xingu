@@ -53,3 +53,28 @@ $ xingu rds logs download -d <database ID> -f <filename>
 ```bash
 xingu rds logs download -d <database ID> --days 2
 ```
+
+### List ec2 instances
+```bash
+xingu ec2 list
+
+# or just one
+xingu ec2 list -n <name filter>
+
+# is equivalent to
+xingu ec2 list --filters "tag:Name=<name filter>"
+````
+
+### SSH into an ec2 instance
+Takes the same filters as list...
+
+```bash
+xingu ec2 ssh # the first one in the list
+
+# you probably want to be more specific
+xingu ec2 ssh -n <name filter>
+````
+
+# TODO
+ - [ ] Download files if missing or smaller than on server
+ - [ ] Gzip files before writing to disk
