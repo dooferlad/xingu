@@ -24,12 +24,17 @@ import (
 var sshCmd = &cobra.Command{
 	Use:   "ssh",
 	Short: "ssh into ec2 instance",
+	Args: func(cmd *cobra.Command, args []string) error {
+		return defaultArgFromPositionS(args, &name)
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return ec2.SSH(name, filter)
 	},
 }
 
 func init() {
+	rootCmd.AddCommand(sshCmd) // quick shortcut
+
 	ec2Cmd.AddCommand(sshCmd)
 	sshCmd.Flags().StringToStringVar(&filter, "filters", nil, "ec2 instance filters")
 	sshCmd.Flags().StringVarP(&name, "name", "n", "", "ec2 instance name")

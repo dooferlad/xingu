@@ -16,6 +16,8 @@ limitations under the License.
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/dooferlad/xingu/ec2"
 
 	"github.com/spf13/cobra"
@@ -24,10 +26,25 @@ import (
 var name string
 var filter map[string]string
 
+func defaultArgFromPositionS(args []string, arg *string) error {
+	if len(args) > 0 {
+		if *arg == "" && len(args) == 1 {
+			*arg = args[0]
+			return nil
+		}
+		return fmt.Errorf("unknown arguments: %v", args)
+	}
+	return nil
+
+}
+
 // ec2ListCmd represents the ec2ListCmd command
 var ec2ListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List ec2 instances",
+	Args: func(cmd *cobra.Command, args []string) error {
+		return defaultArgFromPositionS(args, &name)
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return ec2.List(name, filter)
 	},
