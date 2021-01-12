@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/dooferlad/xingu/ec2"
+	"github.com/dooferlad/xingu/session"
 
 	"github.com/spf13/cobra"
 )
@@ -46,7 +47,13 @@ var ec2ListCmd = &cobra.Command{
 		return defaultArgFromPositionS(args, &name)
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return ec2.List(name, filter)
+		sess, err := session.New()
+		if err != nil {
+			return err
+		}
+
+		defer sess.SaveCreds()
+		return ec2.List(sess.Session, name, filter)
 	},
 }
 

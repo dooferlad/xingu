@@ -15,7 +15,26 @@ $ aws rds download-db-log-file-portion --db-instance-identifier <db ID> --log-fi
 
 # Usage
 ## Configuration
-None - it reads your AWS configuration from your environment and your home directory, just like the `aws` tool does.
+Primarily xingu reads your AWS configuration from your environment and your home directory, just like the `aws` tool does.
+In addition it has its own config file at $HOME/.xingu.yaml that contains some optional configuration:
+
+```yaml
+# Xingu can act as an OTP token provider so you don't have to enter the
+# token every time. It uses the same configuration as
+# https://github.com/pcarrier/gauth
+otp: <otp token>
+
+# Set per-configuration SSH config. This is useful if you have lots of
+# SSH keys and don't want to offer all of them to the remote server, since
+# most will give up after a few and tell you that your authentication
+# has failed. It is also useful because you can have individually
+# configured jump hosts that match on 10.*.*.*. If you have many VPCs
+# in the 10.*.*.* range with overlapping subnets, this allows you to pick
+# the right jump host for the right VPC.
+prod:
+  ssh:
+    config: /home/dooferlad/.ssh/prod-config
+```
 
 ## Commands
 ```bash

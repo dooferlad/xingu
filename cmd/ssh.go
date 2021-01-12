@@ -17,6 +17,7 @@ package cmd
 
 import (
 	"github.com/dooferlad/xingu/ec2"
+	"github.com/dooferlad/xingu/session"
 	"github.com/spf13/cobra"
 )
 
@@ -28,7 +29,13 @@ var sshCmd = &cobra.Command{
 		return defaultArgFromPositionS(args, &name)
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return ec2.SSH(name, filter)
+		sess, err := session.New()
+		if err != nil {
+			return err
+		}
+
+		defer sess.SaveCreds()
+		return ec2.SSH(sess.Session, name, filter)
 	},
 }
 

@@ -2,22 +2,25 @@ package logs
 
 import (
 	"fmt"
+	"time"
+
+	"github.com/dooferlad/xingu/session"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/rds"
-	"time"
 )
 
 func List(dbIdentifier string) error {
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
+	sess, err := session.New()
+	if err != nil {
+		return err
+	}
 
 	svc := rds.New(sess)
 	input := &rds.DescribeDBLogFilesInput{
 		DBInstanceIdentifier: aws.String(dbIdentifier),
-		FileLastWritten:      aws.Int64(time.Now().Add(-time.Hour * 48).Unix() * 1000),
+		FileLastWritten:      aws.Int64(time.Now().Add(-time.Hour*48).Unix() * 1000),
 	}
 
 	result, err := svc.DescribeDBLogFiles(input)

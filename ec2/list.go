@@ -4,23 +4,37 @@ import (
 	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
-
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/rds"
 )
 
-func List(name string, filter map[string]string) error {
-	result, err := list(name, filter)
+func List(sess *session.Session, name string, filter map[string]string) error {
+	result, err := list(sess, name, filter)
 	if err != nil {
 		return err
+	}
+
+	svc := ec2.New(sess)
+
+	addressesArray, err := svc.DescribeAddresses(nil)
+	if err != nil {
+		return err
+	}
+
+	addresses := map[string]*ec2.Address{}
+
+	for _, a := range addressesArray.Addresses {
+		if a.InstanceId != nil {
+			addresses[*a.InstanceId] = a
+		}
 	}
 
 	for _, reservation := range result.Reservations {
 		for _, instance := range reservation.Instances {
 			var name string
-			var privateIPAddress string
+			var privateIPAddress, publicIPAddress string
 			for _, tag := range instance.Tags {
 				if *tag.Key == "Name" {
 					name = *tag.Value
@@ -29,18 +43,19 @@ func List(name string, filter map[string]string) error {
 			if instance.PrivateIpAddress != nil {
 				privateIPAddress = *instance.PrivateIpAddress
 			}
-			fmt.Printf("%s %s\n", name, privateIPAddress)
+
+			if a, ok := addresses[*instance.InstanceId]; ok {
+				publicIPAddress = *a.PublicIp
+			}
+
+			fmt.Printf("%s %30s %15s %15s\n", *instance.InstanceId, name, privateIPAddress, publicIPAddress)
 		}
 	}
 
 	return nil
 }
 
-func list(name string, filter map[string]string) (*ec2.DescribeInstancesOutput, error) {
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
-
+func list(sess *session.Session, name string, filter map[string]string) (*ec2.DescribeInstancesOutput, error) {
 	var filters []*ec2.Filter
 
 	if name != "" {

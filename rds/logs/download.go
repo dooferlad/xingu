@@ -2,27 +2,30 @@ package logs
 
 import (
 	"fmt"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/defaults"
-	"github.com/aws/aws-sdk-go/aws/session"
-	v4 "github.com/aws/aws-sdk-go/aws/signer/v4"
-	"github.com/aws/aws-sdk-go/service/rds"
 	"io"
 	"net/http"
 	"os"
 	"path"
 	"time"
+
+	"github.com/dooferlad/xingu/session"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/defaults"
+	v4 "github.com/aws/aws-sdk-go/aws/signer/v4"
+	"github.com/aws/aws-sdk-go/service/rds"
 )
 
 func DownloadDays(days int, dbIdentifier string) error {
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
+	sess, err := session.New()
+	if err != nil {
+		return err
+	}
 
 	svc := rds.New(sess)
 	input := &rds.DescribeDBLogFilesInput{
 		DBInstanceIdentifier: aws.String(dbIdentifier),
-		FileLastWritten:      aws.Int64(time.Now().Add(-time.Hour * 24 * time.Duration(days)).Unix() * 1000),
+		FileLastWritten:      aws.Int64(time.Now().Add(-time.Hour*24*time.Duration(days)).Unix() * 1000),
 	}
 
 	result, err := svc.DescribeDBLogFiles(input)
@@ -40,9 +43,11 @@ func DownloadDays(days int, dbIdentifier string) error {
 }
 
 func Download(fileName, dbIdentifier string) error {
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-	}))
+	sess, err := session.New()
+	if err != nil {
+		return err
+	}
+
 	creds := defaults.CredChain(sess.Config, sess.Handlers)
 	signer := v4.NewSigner(creds)
 
@@ -56,7 +61,7 @@ func Download(fileName, dbIdentifier string) error {
 	)
 
 	request, _ := http.NewRequest("GET", url, nil)
-	_, err := signer.Presign(request, nil, rds.ServiceName, region, 1*time.Hour, time.Now())
+	_, err = signer.Presign(request, nil, rds.ServiceName, region, 1*time.Hour, time.Now())
 	if err != nil {
 		return err
 	}

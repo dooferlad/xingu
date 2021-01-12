@@ -2,15 +2,33 @@ package ec2
 
 import (
 	"fmt"
+	"os"
+	"strings"
+
+	"github.com/aws/aws-sdk-go/aws/session"
+
+	"github.com/spf13/viper"
 
 	"github.com/dooferlad/jat/shell"
 )
 
-func SSH(name string, filter map[string]string) error {
-	result, err := list(name, filter)
+func SSH(sess *session.Session, name string, filter map[string]string) error {
+	userConfig := viper.GetStringMap(os.Getenv("AWS_PROFILE"))
+	sshXinguConfig, ok := userConfig["ssh"]
+	var sshArgs []string
+	if ok {
+		sshConfigFileMap, ok := sshXinguConfig.(map[string]interface{})["config"]
+		if ok {
+			sshArgs = append(sshArgs, "-F", sshConfigFileMap.(string))
+		}
+	}
+
+	result, err := list(sess, name, filter)
 	if err != nil {
 		return err
 	}
+
+	var ipAddress string
 
 	for _, reservation := range result.Reservations {
 		for _, instance := range reservation.Instances {
@@ -22,13 +40,15 @@ func SSH(name string, filter map[string]string) error {
 			}
 
 			if instance.PublicIpAddress != nil {
-				fmt.Printf("ssh %s # %s\n", *instance.PublicIpAddress, name)
-				return shell.Shell("ssh", *instance.PublicIpAddress)
+				ipAddress = *instance.PublicIpAddress
+			} else if instance.PrivateIpAddress != nil {
+				ipAddress = *instance.PrivateIpAddress
 			}
 
-			if instance.PrivateIpAddress != nil {
-				fmt.Printf("ssh %s # %s\n", *instance.PrivateIpAddress, name)
-				return shell.Shell("ssh", *instance.PrivateIpAddress)
+			if ipAddress != "" {
+				sshArgs = append(sshArgs, ipAddress)
+				fmt.Printf("ssh %s # %s\n", strings.Join(sshArgs, " "), name)
+				return shell.Shell("ssh", sshArgs...)
 			}
 		}
 	}
