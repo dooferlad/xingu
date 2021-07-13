@@ -17,6 +17,7 @@ package cmd
 
 import (
 	"fmt"
+
 	"github.com/dooferlad/xingu/rds/logs"
 	"github.com/spf13/cobra"
 )
@@ -34,9 +35,9 @@ var downloadCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var err error
 		if FileName != "" {
-			err = logs.Download(FileName, Database)
+			err = logs.Download(cmd.Context(), FileName, Database)
 		} else if Days != 0 {
-			err = logs.DownloadDays(Days, Database)
+			err = logs.DownloadDays(cmd.Context(), Days, Database)
 		} else {
 			err = fmt.Errorf("days or filename must be specified")
 		}

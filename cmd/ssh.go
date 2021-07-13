@@ -16,8 +16,8 @@ limitations under the License.
 package cmd
 
 import (
+	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/dooferlad/xingu/ec2"
-	"github.com/dooferlad/xingu/session"
 	"github.com/spf13/cobra"
 )
 
@@ -29,13 +29,12 @@ var sshCmd = &cobra.Command{
 		return defaultArgFromPositionS(args, &name)
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		sess, err := session.New()
+		cfg, err := config.LoadDefaultConfig(cmd.Context())
 		if err != nil {
 			return err
 		}
 
-		defer sess.SaveCreds()
-		return ec2.SSH(sess.Session, name, filter)
+		return ec2.SSH(cmd.Context(), cfg, name, filter)
 	},
 }
 

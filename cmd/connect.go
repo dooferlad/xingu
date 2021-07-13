@@ -16,8 +16,9 @@ limitations under the License.
 package cmd
 
 import (
+	"github.com/aws/aws-sdk-go-v2/config"
+
 	"github.com/dooferlad/xingu/ec2"
-	"github.com/dooferlad/xingu/session"
 
 	"github.com/spf13/cobra"
 )
@@ -30,14 +31,13 @@ var connectCmd = &cobra.Command{
 		return defaultArgFromPositionS(args, &name)
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-
-		sess, err := session.New()
+		ctx := cmd.Context()
+		cfg, err := config.LoadDefaultConfig(ctx)
 		if err != nil {
 			return err
 		}
 
-		defer sess.SaveCreds()
-		return ec2.SSMConnect(sess.Session, name, filter)
+		return ec2.SSMConnect(ctx, cfg, name, filter)
 	},
 }
 

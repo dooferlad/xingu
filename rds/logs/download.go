@@ -1,88 +1,84 @@
 package logs
 
 import (
+	"context"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"path"
 	"time"
 
-	"github.com/dooferlad/xingu/session"
+	"github.com/aws/aws-sdk-go-v2/config"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/defaults"
-	v4 "github.com/aws/aws-sdk-go/aws/signer/v4"
-	"github.com/aws/aws-sdk-go/service/rds"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/rds"
 )
 
-func DownloadDays(days int, dbIdentifier string) error {
-	sess, err := session.New()
+func DownloadDays(ctx context.Context, days int, dbIdentifier string) error {
+	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		return err
 	}
 
-	svc := rds.New(sess)
+	svc := rds.NewFromConfig(cfg)
 	input := &rds.DescribeDBLogFilesInput{
 		DBInstanceIdentifier: aws.String(dbIdentifier),
-		FileLastWritten:      aws.Int64(time.Now().Add(-time.Hour*24*time.Duration(days)).Unix() * 1000),
+		FileLastWritten:      time.Now().Add(-time.Hour*24*time.Duration(days)).Unix() * 1000,
 	}
 
-	result, err := svc.DescribeDBLogFiles(input)
+	result, err := svc.DescribeDBLogFiles(ctx, input)
 	if err != nil {
 		return err
 	}
 
 	for _, r := range result.DescribeDBLogFiles {
-		if err := Download(*r.LogFileName, dbIdentifier); err != nil {
-			return err
-		}
+		func(name string) {
+			fmt.Printf("Downloading: %s\n", name)
+			if err := Download(ctx, name, dbIdentifier); err != nil {
+				fmt.Printf("Error downloading %s: %s\n", name, err.Error())
+			}
+
+		}(*r.LogFileName)
 	}
 
 	return nil
 }
 
-func Download(fileName, dbIdentifier string) error {
-	sess, err := session.New()
+func Download(ctx context.Context, fileName, dbIdentifier string) error {
+	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		return err
 	}
 
-	creds := defaults.CredChain(sess.Config, sess.Handlers)
-	signer := v4.NewSigner(creds)
+	svc := rds.NewFromConfig(cfg)
 
-	region := *sess.Config.Region
+	downloadDBLogFilePortionInput := &rds.DownloadDBLogFilePortionInput{
+		DBInstanceIdentifier: &dbIdentifier,
+		LogFileName:          &fileName,
+	}
 
-	url := fmt.Sprintf(
-		"https://rds.%s.amazonaws.com/v13/downloadCompleteLogFile/%s/%s",
-		region,
-		dbIdentifier,
-		fileName,
-	)
-
-	request, _ := http.NewRequest("GET", url, nil)
-	_, err = signer.Presign(request, nil, rds.ServiceName, region, 1*time.Hour, time.Now())
+	out, err := os.Create(path.Base(fileName))
 	if err != nil {
-		return err
-	}
-	fmt.Println(request.URL)
-
-	resp, err := http.DefaultClient.Do(request)
-	if err != nil {
-		return err
-	}
-
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("HTTP error downloading log: %s", resp.Status)
-	}
-
-	defer resp.Body.Close()
-
-	if out, err := os.Create(path.Base(fileName)); err != nil {
 		return err
 	} else {
 		defer out.Close()
-		io.Copy(out, resp.Body)
+	}
+
+	lfp := rds.NewDownloadDBLogFilePortionPaginator(svc, downloadDBLogFilePortionInput)
+
+	for {
+		result, err := lfp.NextPage(ctx)
+		if err != nil {
+			return err
+		}
+
+		fmt.Println(fileName, result.AdditionalDataPending, lfp.HasMorePages())
+		if result.LogFileData != nil {
+			out.WriteString(*result.LogFileData)
+		}
+		if !result.AdditionalDataPending {
+			break
+		}
+
 	}
 
 	return nil

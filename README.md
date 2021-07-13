@@ -11,7 +11,9 @@ Initially I wanted to download RDS logs and the way to do this is supposed to be
 ```bash
 $ aws rds download-db-log-file-portion --db-instance-identifier <db ID> --log-file-name <filename> --output text --starting-token 0 > /tmp/psql.log
 ```
-...but this didn't work. It would have bits of file missing. The reliable way seems to be using the downloadCompleteLogFile API endpoint. This tool does that.
+...but this didn't work. It downloads a portion (the hint being in the API endpoint name) and sure,
+you can get multiple bits and stick them together, possibly even in a bit of shell script if you
+wanted, but I didn't.
 
 # Usage
 ## Configuration
@@ -19,11 +21,6 @@ Primarily xingu reads your AWS configuration from your environment and your home
 In addition it has its own config file at $HOME/.xingu.yaml that contains some optional configuration:
 
 ```yaml
-# Xingu can act as an OTP token provider so you don't have to enter the
-# token every time. It uses the same configuration as
-# https://github.com/pcarrier/gauth
-otp: <otp token>
-
 # Set per-configuration SSH config. This is useful if you have lots of
 # SSH keys and don't want to offer all of them to the remote server, since
 # most will give up after a few and tell you that your authentication
@@ -38,24 +35,24 @@ prod:
 
 ## Commands
 ```bash
-$ xingu rds logs
-Interact with RDS logs
-
 Usage:
-  xingu rds logs [command]
+  xingu [command]
 
 Available Commands:
-  download    Download an RDS log file
-  list        List RDS logs
-  list        List RDS logs
+  completion  generate the autocompletion script for the specified shell
+  connect     Connect to instance using session manager
+  ec2         A brief description of your command
+  help        Help about any command
+  rds         Interact with Amazon RDS
+  ssh         ssh into ec2 instance
 
 Flags:
-  -h, --help   help for logs
+      --config string    config file (default is $HOME/.xingu.yaml)
+  -h, --help             help for xingu
+      --profile string   AWS profile
 
-Global Flags:
-      --config string   config file (default is $HOME/.xingu.yaml)
+Use "xingu [command] --help" for more information about a command.
 
-Use "xingu rds logs [command] --help" for more information about a command.
 ```
 
 ### List log files
@@ -78,7 +75,7 @@ xingu rds logs download -d <database ID> --days 2
 xingu ec2 list
 
 # or just one
-xingu ec2 list -n <name filter>
+xingu ec2 list <name filter>
 
 # is equivalent to
 xingu ec2 list --filters "tag:Name=<name filter>"
@@ -91,8 +88,13 @@ Takes the same filters as list...
 xingu ec2 ssh # the first one in the list
 
 # you probably want to be more specific
-xingu ec2 ssh -n <name filter>
+xingu ec2 ssh <name filter>
 ````
+
+### Connect to an ec2 instance using session manager
+```bash
+xingu ec2 connect <name filter>
+```
 
 # TODO
  - [ ] Download files if missing or smaller than on server

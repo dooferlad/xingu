@@ -25,7 +25,7 @@ var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List RDS logs",
 	Run: func(cmd *cobra.Command, args []string) {
-		logs.List(Database)
+		logs.List(cmd.Context(), Database)
 	},
 }
 

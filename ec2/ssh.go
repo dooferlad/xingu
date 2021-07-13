@@ -1,18 +1,19 @@
 package ec2
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go-v2/aws"
 
 	"github.com/spf13/viper"
 
 	"github.com/dooferlad/jat/shell"
 )
 
-func SSH(sess *session.Session, name string, filter map[string]string) error {
+func SSH(ctx context.Context, cfg aws.Config, name string, filter map[string]string) error {
 	userConfig := viper.GetStringMap(os.Getenv("AWS_PROFILE"))
 	sshXinguConfig, ok := userConfig["ssh"]
 	var sshArgs []string
@@ -23,7 +24,7 @@ func SSH(sess *session.Session, name string, filter map[string]string) error {
 		}
 	}
 
-	result, err := list(sess, name, filter)
+	result, err := list(ctx, cfg, name, filter)
 	if err != nil {
 		return err
 	}

@@ -18,8 +18,9 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/aws/aws-sdk-go-v2/config"
+
 	"github.com/dooferlad/xingu/ec2"
-	"github.com/dooferlad/xingu/session"
 
 	"github.com/spf13/cobra"
 )
@@ -47,13 +48,13 @@ var ec2ListCmd = &cobra.Command{
 		return defaultArgFromPositionS(args, &name)
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		sess, err := session.New()
+		ctx := cmd.Context()
+		cfg, err := config.LoadDefaultConfig(ctx)
 		if err != nil {
 			return err
 		}
 
-		defer sess.SaveCreds()
-		return ec2.List(sess.Session, name, filter)
+		return ec2.List(ctx, cfg, name, filter)
 	},
 }
 

@@ -1,40 +1,36 @@
 package logs
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"time"
 
-	"github.com/dooferlad/xingu/session"
+	"github.com/aws/aws-sdk-go-v2/config"
+	rdsTypes "github.com/aws/aws-sdk-go-v2/service/rds/types"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/rds"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/rds"
 )
 
-func List(dbIdentifier string) error {
-	sess, err := session.New()
+func List(ctx context.Context, dbIdentifier string) error {
+	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		return err
 	}
 
-	svc := rds.New(sess)
+	svc := rds.NewFromConfig(cfg)
 	input := &rds.DescribeDBLogFilesInput{
 		DBInstanceIdentifier: aws.String(dbIdentifier),
-		FileLastWritten:      aws.Int64(time.Now().Add(-time.Hour*48).Unix() * 1000),
+		FileLastWritten:      time.Now().Add(-time.Hour*48).Unix() * 1000,
 	}
 
-	result, err := svc.DescribeDBLogFiles(input)
+	result, err := svc.DescribeDBLogFiles(ctx, input)
 	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			switch aerr.Code() {
-			case rds.ErrCodeDBInstanceNotFoundFault:
-				fmt.Println(rds.ErrCodeDBInstanceNotFoundFault, aerr.Error())
-			default:
-				fmt.Println(aerr.Error())
-			}
+		var dbNotFound rdsTypes.DBInstanceNotFoundFault
+		if errors.As(err, &dbNotFound) {
+			fmt.Println(dbNotFound.ErrorCode(), dbNotFound.ErrorMessage())
 		} else {
-			// Print the error, cast err to awserr.Error to get the Code and
-			// Message from an error.
 			fmt.Println(err.Error())
 		}
 		return err

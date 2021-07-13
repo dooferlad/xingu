@@ -7,17 +7,16 @@ import (
 	"os"
 	"time"
 
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
 	"github.com/dooferlad/jat/shell"
 
-	"github.com/aws/aws-sdk-go/service/ssm"
-
-	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
 )
 
-func SSMConnect(sess *session.Session, name string, filter map[string]string) error {
-	result, err := list(sess, name, filter)
+func SSMConnect(ctx context.Context, cfg aws.Config, name string, filter map[string]string) error {
+	result, err := list(ctx, cfg, name, filter)
 	if err != nil {
 		return err
 	}
@@ -32,7 +31,7 @@ func SSMConnect(sess *session.Session, name string, filter map[string]string) er
 			}
 
 			if *instance.State.Code == 16 { // Running
-				return ssmConnect(sess, instance, name)
+				return ssmConnect(ctx, cfg, instance, name)
 			}
 		}
 	}
@@ -40,14 +39,14 @@ func SSMConnect(sess *session.Session, name string, filter map[string]string) er
 	return nil
 }
 
-func ssmConnect(sess *session.Session, instance *ec2.Instance, name string) error {
+func ssmConnect(ctx context.Context, cfg aws.Config, instance types.Instance, name string) error {
 	fmt.Printf("aws ssm start-session %s # %s\n", *instance.InstanceId, name)
-	svc := ssm.New(sess, nil)
-	subctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	svc := ssm.NewFromConfig(cfg)
+	subctx, cancel := context.WithTimeout(ctx, time.Second*15)
 	defer cancel()
 
 	sessionConfig := &ssm.StartSessionInput{Target: instance.InstanceId}
-	startSessionOutput, err := svc.StartSessionWithContext(subctx, sessionConfig)
+	startSessionOutput, err := svc.StartSession(subctx, sessionConfig)
 	if err != nil {
 		return err
 	}
@@ -65,14 +64,14 @@ func ssmConnect(sess *session.Session, instance *ec2.Instance, name string) erro
 	shell.Shell(
 		"session-manager-plugin",
 		string(sessJson),
-		*sess.Config.Region,
+		cfg.Region,
 		"StartSession",
 		os.Getenv("AWS_PROFILE"),
 		string(paramsJson),
 		*instance.InstanceId,
 	)
 
-	if _, err := svc.TerminateSessionWithContext(subctx, &ssm.TerminateSessionInput{SessionId: startSessionOutput.SessionId}); err != nil {
+	if _, err := svc.TerminateSession(subctx, &ssm.TerminateSessionInput{SessionId: startSessionOutput.SessionId}); err != nil {
 		return err
 	}
 
